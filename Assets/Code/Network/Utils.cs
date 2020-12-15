@@ -3,7 +3,8 @@ using System.Net.Sockets;
 
 public class Utils
 {
-    public static int PORT = 11000;
+    public static int TCP_PORT = 11000;
+    public static int UDP_PORT = 11001;
 
     public static byte[] ReadData(NetworkStream stream)
     {
