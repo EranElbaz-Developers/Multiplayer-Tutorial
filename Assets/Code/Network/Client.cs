@@ -30,8 +30,7 @@ public class Client : MonoBehaviour
 
     public void OnLoginPress()
     {
-        using (TcpClient client = new TcpClient(server, Utils.TCP_PORT))
-        using (var nwStream = client.GetStream())
+        using (var nwStream = tcpClient.GetStream())
         {
             var request = new LoginRequest(userInput.text);
             var jsonRequest = JsonUtility.ToJson(request);
