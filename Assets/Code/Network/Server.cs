@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Text;
 using Unity.Mathematics;
 using UnityEngine;
@@ -6,12 +7,12 @@ using UnityEngine;
 
 public class Server : MonoBehaviour
 {
-    private UserManager um;
+    public Dictionary<int, ClientDataServer> clients;
     private Dictionary<int, GameObject> clientGos;
 
     private void Awake()
     {
-        um = new UserManager();
+        clients = new Dictionary<int, ClientDataServer>();
         clientGos = new Dictionary<int, GameObject>();
         var tcp = new TcpServer(TcpReceived);
         var udp = new UdpServer(UdpReceived);
@@ -23,12 +24,11 @@ public class Server : MonoBehaviour
     {
         var playerData = JsonUtility.FromJson<PlayerDataPacket>(dataJson);
 
-        if (um.users[playerData.clientId].lastPacketCounter < playerData.packetCounter)
+        if (clients[playerData.clientId].lastPacketCounter < playerData.packetCounter)
         {
             Debug.Log($"Got new data for user {playerData.clientId}");
-            var data = um.users[playerData.clientId];
-            data.position = playerData.position;
-            data.rotation = playerData.rotation;
+            var data = clients[playerData.clientId];
+            data.clientTransform = playerData.clientTransform;
             data.lastPacketCounter = playerData.packetCounter;
         }
     }
@@ -37,34 +37,37 @@ public class Server : MonoBehaviour
     {
         var loginRequest = JsonUtility.FromJson<LoginRequest>(requestJson);
 
-        var userId = um.users.Count;
+        var clientId = clients.Count;
 
-        var pds = new PlayerDataServer(Vector3.zero, Vector3.zero, loginRequest.username, userId, 0);
+        var pds = new ClientDataServer(new ClientTransform(Vector3.zero, Quaternion.identity), loginRequest.clientName, clientId,
+            0, loginRequest.clientIp);
 
-        um.users.Add(userId, pds);
-        Debug.Log($"New user login {userId}, with nickname {loginRequest.username}");
+        clients.Add(clientId, pds);
+        Debug.Log($"New client login {clientId}, with nickname {loginRequest.clientName}");
 
-        var response = new LoginResponse(userId);
+        var response = new LoginResponse(clientId);
         var responseJson = JsonUtility.ToJson(response);
         return Encoding.ASCII.GetBytes(responseJson);
     }
 
     private void FixedUpdate()
     {
-        foreach (var user in um.users)
+        var clientTransforms = new Dictionary<int, ClientTransform>();
+        foreach (var client in clients)
         {
             GameObject clientGo;
-            if (!clientGos.TryGetValue(user.Key, out clientGo))
+            if (!clientGos.TryGetValue(client.Key, out clientGo))
             {
                 clientGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                clientGo.name = user.Value.name;
+                clientGo.name = client.Value.name;
                 clientGo.transform.parent = transform;
-                clientGos.Add(user.Key, clientGo);
+                clientGos.Add(client.Key, clientGo);
             }
 
-            var clientTransform = clientGo.transform;
-            clientTransform.position = user.Value.position;
-            clientTransform.rotation = quaternion.Euler(user.Value.rotation);
+            var clientGoTransform = clientGo.transform;
+            clientGoTransform.position = client.Value.clientTransform.position;
+            clientGoTransform.rotation = client.Value.clientTransform.rotation;
+            clientTransforms.Add(client.Key, client.Value.clientTransform);
         }
     }
 }

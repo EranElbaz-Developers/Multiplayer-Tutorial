@@ -1,5 +1,4 @@
-﻿using System;
-using System.Net.Sockets;
+﻿using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -21,6 +20,13 @@ public class Client : MonoBehaviour
         tcpClient = new TcpClient(server, Utils.SERVER_TCP_PORT);
         udpClient = new UdpClient(server, Utils.SERVER_TCP_PORT);
         udpCounter = 0;
+        udpServer = new UdpServer(UdpReceived);
+
+    }
+
+    private void UdpReceived(string payload)
+    {
+        Debug.Log(payload);
     }
 
     private void OnDestroy()
@@ -45,12 +51,13 @@ public class Client : MonoBehaviour
             id = response.id;
             player.SetActive(true);
             loginForm.SetActive(false);
+            udpServer.Start(Utils.CLIENT_UDP_PORT);
         }
     }
 
     private void FixedUpdate()
     {
-        var playerData = new PlayerDataPacket(player.transform.position, player.transform.rotation.eulerAngles, id,
+        var playerData = new PlayerDataPacket(new ClientTransform(player.transform.position, player.transform.rotation), id,
             udpCounter);
         udpCounter++;
         var jsonRequest = JsonUtility.ToJson(playerData);
