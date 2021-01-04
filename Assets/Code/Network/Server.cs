@@ -13,38 +13,16 @@ public class Server : MonoBehaviour
     private UserManager um;
     private Dictionary<int, GameObject> clientGos;
 
-    private struct UdpHelper
-    {
-        public UdpClient client;
-        public IPEndPoint endPoint;
-    }
-    
-    
     private void Awake()
     {
         um = new UserManager();
         clientGos = new Dictionary<int, GameObject>();
-        TcpServer();
-        UdpServer();
+        TcpServer(Utils.TCP_PORT);
+        var udp = new UdpServer(UdpReceived);
     }
 
-    void UdpServer()
+    void UdpReceived(byte[] payload)
     {
-        Debug.Log($"Starting UDP server on port {Utils.UDP_PORT}");
-        var udpHelper = new UdpHelper();
-        udpHelper.client = new UdpClient(Utils.UDP_PORT);
-        udpHelper.endPoint = new IPEndPoint(IPAddress.Any, Utils.UDP_PORT);
-        udpHelper.client.BeginReceive(UdpReceived, udpHelper);
-    }
-
-
-    void UdpReceived(IAsyncResult ar)
-    {
-        IPEndPoint senderIP = new IPEndPoint(IPAddress.Any, 0);
-        var client = ((UdpHelper) (ar.AsyncState)).client;
-        client.BeginReceive(UdpReceived, ar.AsyncState);
-
-        var payload = client.EndReceive(ar, ref senderIP);
         var dataJson = Encoding.ASCII.GetString(payload);
         var playerData = JsonUtility.FromJson<PlayerDataPacket>(dataJson);
 
@@ -56,15 +34,13 @@ public class Server : MonoBehaviour
             data.rotation = playerData.rotation;
             data.lastPacketCounter = playerData.packetCounter;
         }
-        
     }
-    
-    
-    void TcpServer()
-    {
-        Debug.Log($"Starting TCP server on port: {Utils.TCP_PORT}");
 
-        TcpListener listener = new TcpListener(IPAddress.Any, Utils.TCP_PORT);
+    void TcpServer(int port)
+    {
+        Debug.Log($"Starting TCP server on port: {port}");
+
+        TcpListener listener = new TcpListener(IPAddress.Any, port);
         listener.Start();
         listener.BeginAcceptTcpClient(TcpReceived, listener);
     }
@@ -86,7 +62,7 @@ public class Server : MonoBehaviour
                 var userId = um.users.Count;
 
                 var pds = new PlayerDataServer(Vector3.zero, Vector3.zero, loginRequest.username, userId, 0);
-                
+
                 um.users.Add(userId, pds);
                 Debug.Log($"New user login {userId}, with nickname {loginRequest.username}");
 
@@ -117,23 +93,3 @@ public class Server : MonoBehaviour
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
