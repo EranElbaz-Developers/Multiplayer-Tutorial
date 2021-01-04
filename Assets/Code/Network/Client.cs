@@ -14,11 +14,12 @@ public class Client : MonoBehaviour
     private TcpClient tcpClient;
     private UdpClient udpClient;
     private int udpCounter;
-
+    private UdpServer udpServer;
+    
     private void Awake()
     {
-        tcpClient = new TcpClient(server, Utils.TCP_PORT);
-        udpClient = new UdpClient(server, Utils.UDP_PORT);
+        tcpClient = new TcpClient(server, Utils.SERVER_TCP_PORT);
+        udpClient = new UdpClient(server, Utils.SERVER_TCP_PORT);
         udpCounter = 0;
     }
 

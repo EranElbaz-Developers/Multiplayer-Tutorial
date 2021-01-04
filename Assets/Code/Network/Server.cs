@@ -15,8 +15,8 @@ public class Server : MonoBehaviour
         clientGos = new Dictionary<int, GameObject>();
         var tcp = new TcpServer(TcpReceived);
         var udp = new UdpServer(UdpReceived);
-        tcp.Start(Utils.TCP_PORT);
-        udp.Start(Utils.UDP_PORT);
+        tcp.Start(Utils.SERVER_TCP_PORT);
+        udp.Start(Utils.SERVER_UDP_PORT);
     }
 
     void UdpReceived(byte[] payload)
