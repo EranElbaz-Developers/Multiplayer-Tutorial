@@ -17,8 +17,10 @@ public class Server : MonoBehaviour
     {
         um = new UserManager();
         clientGos = new Dictionary<int, GameObject>();
-        TcpServer(Utils.TCP_PORT);
+        var tcp = new TcpServer(TcpReceived);
         var udp = new UdpServer(UdpReceived);
+        tcp.Start(Utils.TCP_PORT);
+        udp.Start(Utils.UDP_PORT);
     }
 
     void UdpReceived(byte[] payload)
@@ -36,42 +38,21 @@ public class Server : MonoBehaviour
         }
     }
 
-    void TcpServer(int port)
+    private byte[] TcpReceived(byte[] payload)
     {
-        Debug.Log($"Starting TCP server on port: {port}");
+        var requestJson = Encoding.ASCII.GetString(payload);
+        var loginRequest = JsonUtility.FromJson<LoginRequest>(requestJson);
 
-        TcpListener listener = new TcpListener(IPAddress.Any, port);
-        listener.Start();
-        listener.BeginAcceptTcpClient(TcpReceived, listener);
-    }
+        var userId = um.users.Count;
 
-    private void TcpReceived(IAsyncResult ar)
-    {
-        TcpListener listener = (TcpListener) ar.AsyncState;
-        listener.BeginAcceptTcpClient(TcpReceived, ar.AsyncState);
+        var pds = new PlayerDataServer(Vector3.zero, Vector3.zero, loginRequest.username, userId, 0);
 
-        using (TcpClient client = listener.EndAcceptTcpClient(ar))
-        using (var nwStream = client.GetStream())
-        {
-            var payload = Utils.ReadData(nwStream);
-            if (payload.Length > 0)
-            {
-                var requestJson = Encoding.ASCII.GetString(payload);
-                var loginRequest = JsonUtility.FromJson<LoginRequest>(requestJson);
+        um.users.Add(userId, pds);
+        Debug.Log($"New user login {userId}, with nickname {loginRequest.username}");
 
-                var userId = um.users.Count;
-
-                var pds = new PlayerDataServer(Vector3.zero, Vector3.zero, loginRequest.username, userId, 0);
-
-                um.users.Add(userId, pds);
-                Debug.Log($"New user login {userId}, with nickname {loginRequest.username}");
-
-                var response = new LoginResponse(userId);
-                var responseJson = JsonUtility.ToJson(response);
-                var responsePayload = Encoding.ASCII.GetBytes(responseJson);
-                nwStream.Write(responsePayload, 0, responsePayload.Length);
-            }
-        }
+        var response = new LoginResponse(userId);
+        var responseJson = JsonUtility.ToJson(response);
+        return Encoding.ASCII.GetBytes(responseJson);
     }
 
     private void FixedUpdate()

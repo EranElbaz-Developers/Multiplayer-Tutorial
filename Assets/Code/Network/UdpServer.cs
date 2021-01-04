@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
-using System.Text;
 using UnityEngine;
 
 public class UdpServer
@@ -21,7 +20,7 @@ public class UdpServer
         this.func = func;
     }
     
-    void Start(int port)
+    public void Start(int port)
     {
         Debug.Log($"Starting UDP server on port {port}");
         var udpHelper = new UdpHelper();
