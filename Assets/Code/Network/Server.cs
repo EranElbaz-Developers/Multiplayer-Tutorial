@@ -19,9 +19,8 @@ public class Server : MonoBehaviour
         udp.Start(Utils.SERVER_UDP_PORT);
     }
 
-    void UdpReceived(byte[] payload)
+    void UdpReceived(string dataJson)
     {
-        var dataJson = Encoding.ASCII.GetString(payload);
         var playerData = JsonUtility.FromJson<PlayerDataPacket>(dataJson);
 
         if (um.users[playerData.clientId].lastPacketCounter < playerData.packetCounter)
@@ -34,9 +33,8 @@ public class Server : MonoBehaviour
         }
     }
 
-    private byte[] TcpReceived(byte[] payload)
+    private byte[] TcpReceived(string requestJson)
     {
-        var requestJson = Encoding.ASCII.GetString(payload);
         var loginRequest = JsonUtility.FromJson<LoginRequest>(requestJson);
 
         var userId = um.users.Count;

@@ -6,7 +6,7 @@ using UnityEngine;
 
 public class TcpServer
 {
-    public delegate byte[] AfterReceiveFunction(byte[] payload);
+    public delegate byte[] AfterReceiveFunction(string payload);
 
     public AfterReceiveFunction func;
 
@@ -35,7 +35,9 @@ public class TcpServer
             var payload = Utils.ReadData(nwStream);
             if (payload.Length > 0)
             {
-                var responsePayload = func(payload);
+                var requestJson = Encoding.ASCII.GetString(payload);
+                var responsePayload = func(requestJson);
+
                 nwStream.Write(responsePayload, 0, responsePayload.Length);
             }
         }

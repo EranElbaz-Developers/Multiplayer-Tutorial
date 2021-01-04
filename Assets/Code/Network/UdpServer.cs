@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using UnityEngine;
 
 public class UdpServer
 {
-    public delegate void AfterReceiveFunction(byte[] payload);
+    public delegate void AfterReceiveFunction(string payload);
 
     public AfterReceiveFunction func;
 
@@ -36,6 +37,7 @@ public class UdpServer
         client.BeginReceive(UdpReceived, ar.AsyncState);
 
         var payload = client.EndReceive(ar, ref senderIP);
-        func(payload);
+        var requestJson = Encoding.ASCII.GetString(payload);
+        func(requestJson);
     }
 }
