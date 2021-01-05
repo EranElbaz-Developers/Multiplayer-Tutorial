@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
-using Unity.Mathematics;
 using UnityEngine;
 
 
@@ -39,7 +38,8 @@ public class Server : MonoBehaviour
 
         var clientId = clients.Count;
 
-        var pds = new ClientDataServer(new ClientTransform(Vector3.zero, Quaternion.identity), loginRequest.clientName, clientId,
+        var pds = new ClientDataServer(new ClientTransform(Vector3.zero, Quaternion.identity), loginRequest.clientName,
+            clientId,
             0, loginRequest.clientIp);
 
         clients.Add(clientId, pds);
@@ -47,7 +47,7 @@ public class Server : MonoBehaviour
 
         var response = new LoginResponse(clientId);
         var responseJson = JsonUtility.ToJson(response);
-        return Encoding.ASCII.GetBytes(responseJson);
+        return Encoding.ASCII.GetBytes(responseJson); 
     }
 
     private void FixedUpdate()
@@ -68,6 +68,16 @@ public class Server : MonoBehaviour
             clientGoTransform.position = client.Value.clientTransform.position;
             clientGoTransform.rotation = client.Value.clientTransform.rotation;
             clientTransforms.Add(client.Key, client.Value.clientTransform);
+        }
+
+        using (UdpClient udpClient = new UdpClient())
+        {
+            foreach (var client in clients)
+            {
+                var payloadJson = JsonUtility.ToJson(clientTransforms);
+                var payload = Encoding.ASCII.GetBytes(payloadJson);
+                udpClient.Send(payload, payload.Length, client.Value.clientIp, Utils.CLIENT_UDP_PORT);
+            }
         }
     }
 }
