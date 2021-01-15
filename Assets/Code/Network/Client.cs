@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -15,6 +16,8 @@ public class Client : MonoBehaviour
     private UdpClient udpClient;
     private int udpCounter;
     private UdpServer udpServer;
+    private Dictionary<int, ClientTransform> otherClientsData;
+    private Dictionary<int, GameObject> otherClientsObjects;
 
     private void Awake()
     {
@@ -22,11 +25,13 @@ public class Client : MonoBehaviour
         udpClient = new UdpClient();
         udpCounter = 0;
         udpServer = new UdpServer(UdpReceived);
+        otherClientsData = new Dictionary<int, ClientTransform>();
+        otherClientsObjects = new Dictionary<int, GameObject>();
     }
 
     private void UdpReceived(string payload)
     {
-        Debug.Log(payload);
+        otherClientsData = JsonConvert.DeserializeObject<Dictionary<int, ClientTransform>>(payload);
     }
 
     private void OnDestroy()
@@ -64,5 +69,24 @@ public class Client : MonoBehaviour
         var jsonRequest = JsonUtility.ToJson(playerData);
         var requestPayload = Encoding.ASCII.GetBytes(jsonRequest);
         udpClient.Send(requestPayload, requestPayload.Length, server, Utils.SERVER_UDP_PORT);
+        
+        
+        foreach (var clientData in otherClientsData)
+        {
+            if (clientData.Key != id)
+            {
+                GameObject clientGo;
+                if (!otherClientsObjects.TryGetValue(clientData.Key, out clientGo))
+                {
+                    clientGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    clientGo.transform.parent = transform;
+                    otherClientsObjects.Add(clientData.Key, clientGo);
+                }
+
+                var clientGoTransform = clientGo.transform;
+                clientGoTransform.position = clientData.Value.position;
+                clientGoTransform.rotation = clientData.Value.rotation;
+            }
+        }
     }
 }
