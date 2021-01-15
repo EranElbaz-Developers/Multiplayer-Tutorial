@@ -1,4 +1,7 @@
-﻿public class PlayerDataPacket
+﻿using System;
+
+[Serializable]
+public class PlayerDataPacket
 {
     public ClientTransform clientTransform;
     public int clientId;
