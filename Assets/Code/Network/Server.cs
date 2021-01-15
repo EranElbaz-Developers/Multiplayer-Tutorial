@@ -2,6 +2,7 @@
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
+using Newtonsoft.Json;
 
 
 public class Server : MonoBehaviour
@@ -77,7 +78,9 @@ public class Server : MonoBehaviour
         {
             foreach (var client in clients)
             {
-                var payloadJson = JsonUtility.ToJson(clientTransforms);
+                var payloadJson = JsonConvert.SerializeObject(clientTransforms, new JsonSerializerSettings() {
+                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                    });
                 var payload = Encoding.ASCII.GetBytes(payloadJson);
                 udpClient.Send(payload, payload.Length, client.Value.clientIp, Utils.CLIENT_UDP_PORT);
             }

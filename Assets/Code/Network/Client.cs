@@ -2,6 +2,7 @@
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
+using Newtonsoft.Json;
 
 public class Client : MonoBehaviour
 {
