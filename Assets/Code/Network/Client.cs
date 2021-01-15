@@ -20,12 +20,12 @@ public class Client : MonoBehaviour
         tcpClient = new TcpClient(server, Utils.SERVER_TCP_PORT);
         udpClient = new UdpClient();
         udpCounter = 0;
-        // udpServer = new UdpServer(UdpReceived);
+        udpServer = new UdpServer(UdpReceived);
     }
 
     private void UdpReceived(string payload)
     {
-        // Debug.Log(payload);
+        Debug.Log(payload);
     }
 
     private void OnDestroy()
@@ -50,7 +50,7 @@ public class Client : MonoBehaviour
             id = response.id;
             player.SetActive(true);
             loginForm.SetActive(false);
-            // udpServer.Start(Utils.CLIENT_UDP_PORT);
+            udpServer.Start(Utils.CLIENT_UDP_PORT);
         }
     }
 
@@ -62,6 +62,6 @@ public class Client : MonoBehaviour
         udpCounter++;
         var jsonRequest = JsonUtility.ToJson(playerData);
         var requestPayload = Encoding.ASCII.GetBytes(jsonRequest);
-        udpClient.Send(requestPayload, requestPayload.Length,server, Utils.SERVER_UDP_PORT);
+        udpClient.Send(requestPayload, requestPayload.Length, server, Utils.SERVER_UDP_PORT);
     }
 }

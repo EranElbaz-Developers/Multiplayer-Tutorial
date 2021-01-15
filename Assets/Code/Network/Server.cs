@@ -23,12 +23,14 @@ public class Server : MonoBehaviour
     {
         var playerData = JsonUtility.FromJson<PlayerDataPacket>(dataJson);
 
-        if (clients[playerData.clientId].lastPacketCounter < playerData.packetCounter)
+        if (clients.TryGetValue(playerData.clientId, out var data))
         {
-            Debug.Log($"Got new data for user {playerData.clientId}");
-            var data = clients[playerData.clientId];
-            data.clientTransform = playerData.clientTransform;
-            data.lastPacketCounter = playerData.packetCounter;
+            if (data.lastPacketCounter < playerData.packetCounter)
+            {
+                Debug.Log($"Got new data for user {playerData.clientId}");
+                data.clientTransform = playerData.clientTransform;
+                data.lastPacketCounter = playerData.packetCounter;
+            }
         }
     }
 
@@ -47,7 +49,7 @@ public class Server : MonoBehaviour
 
         var response = new LoginResponse(clientId);
         var responseJson = JsonUtility.ToJson(response);
-        return Encoding.ASCII.GetBytes(responseJson); 
+        return Encoding.ASCII.GetBytes(responseJson);
     }
 
     private void FixedUpdate()
@@ -65,6 +67,7 @@ public class Server : MonoBehaviour
             }
 
             var clientGoTransform = clientGo.transform;
+            Debug.Log($"setting the transform using ${client.Value.clientTransform.position}");
             clientGoTransform.position = client.Value.clientTransform.position;
             clientGoTransform.rotation = client.Value.clientTransform.rotation;
             clientTransforms.Add(client.Key, client.Value.clientTransform);
