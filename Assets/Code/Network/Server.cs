@@ -1,139 +1,89 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
+﻿using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
-using Unity.Mathematics;
 using UnityEngine;
+using Newtonsoft.Json;
 
 
 public class Server : MonoBehaviour
 {
-    private UserManager um;
+    public Dictionary<int, ClientDataServer> clients;
     private Dictionary<int, GameObject> clientGos;
 
-    private struct UdpHelper
-    {
-        public UdpClient client;
-        public IPEndPoint endPoint;
-    }
-    
-    
     private void Awake()
     {
-        um = new UserManager();
+        clients = new Dictionary<int, ClientDataServer>();
         clientGos = new Dictionary<int, GameObject>();
-        TcpServer();
-        UdpServer();
+        var tcp = new TcpServer(TcpReceived);
+        var udp = new UdpServer(UdpReceived);
+        tcp.Start(Utils.SERVER_TCP_PORT);
+        udp.Start(Utils.SERVER_UDP_PORT);
     }
 
-    void UdpServer()
+    void UdpReceived(string dataJson)
     {
-        Debug.Log($"Starting UDP server on port {Utils.UDP_PORT}");
-        var udpHelper = new UdpHelper();
-        udpHelper.client = new UdpClient(Utils.UDP_PORT);
-        udpHelper.endPoint = new IPEndPoint(IPAddress.Any, Utils.UDP_PORT);
-        udpHelper.client.BeginReceive(UdpReceived, udpHelper);
-    }
-
-
-    void UdpReceived(IAsyncResult ar)
-    {
-        IPEndPoint senderIP = new IPEndPoint(IPAddress.Any, 0);
-        var client = ((UdpHelper) (ar.AsyncState)).client;
-        client.BeginReceive(UdpReceived, ar.AsyncState);
-
-        var payload = client.EndReceive(ar, ref senderIP);
-        var dataJson = Encoding.ASCII.GetString(payload);
         var playerData = JsonUtility.FromJson<PlayerDataPacket>(dataJson);
 
-        if (um.users[playerData.clientId].lastPacketCounter < playerData.packetCounter)
+        if (clients.TryGetValue(playerData.clientId, out var data))
         {
-            Debug.Log($"Got new data for user {playerData.clientId}");
-            var data = um.users[playerData.clientId];
-            data.position = playerData.position;
-            data.rotation = playerData.rotation;
-            data.lastPacketCounter = playerData.packetCounter;
-        }
-        
-    }
-    
-    
-    void TcpServer()
-    {
-        Debug.Log($"Starting TCP server on port: {Utils.TCP_PORT}");
-
-        TcpListener listener = new TcpListener(IPAddress.Any, Utils.TCP_PORT);
-        listener.Start();
-        listener.BeginAcceptTcpClient(TcpReceived, listener);
-    }
-
-    private void TcpReceived(IAsyncResult ar)
-    {
-        TcpListener listener = (TcpListener) ar.AsyncState;
-        listener.BeginAcceptTcpClient(TcpReceived, ar.AsyncState);
-
-        using (TcpClient client = listener.EndAcceptTcpClient(ar))
-        using (var nwStream = client.GetStream())
-        {
-            var payload = Utils.ReadData(nwStream);
-            if (payload.Length > 0)
+            if (data.lastPacketCounter < playerData.packetCounter)
             {
-                var requestJson = Encoding.ASCII.GetString(payload);
-                var loginRequest = JsonUtility.FromJson<LoginRequest>(requestJson);
-
-                var userId = um.users.Count;
-
-                var pds = new PlayerDataServer(Vector3.zero, Vector3.zero, loginRequest.username, userId, 0);
-                
-                um.users.Add(userId, pds);
-                Debug.Log($"New user login {userId}, with nickname {loginRequest.username}");
-
-                var response = new LoginResponse(userId);
-                var responseJson = JsonUtility.ToJson(response);
-                var responsePayload = Encoding.ASCII.GetBytes(responseJson);
-                nwStream.Write(responsePayload, 0, responsePayload.Length);
+                Debug.Log($"Got new data for user {playerData.clientId}");
+                data.clientTransform = playerData.clientTransform;
+                data.lastPacketCounter = playerData.packetCounter;
             }
         }
+    }
+
+    private byte[] TcpReceived(string requestJson)
+    {
+        var loginRequest = JsonUtility.FromJson<LoginRequest>(requestJson);
+
+        var clientId = clients.Count;
+
+        var pds = new ClientDataServer(new ClientTransform(Vector3.zero, Quaternion.identity), loginRequest.clientName,
+            clientId,
+            0, loginRequest.clientIp);
+
+        clients.Add(clientId, pds);
+        Debug.Log($"New client login {clientId}, with nickname {loginRequest.clientName}");
+
+        var response = new LoginResponse(clientId);
+        var responseJson = JsonUtility.ToJson(response);
+        return Encoding.ASCII.GetBytes(responseJson);
     }
 
     private void FixedUpdate()
     {
-        foreach (var user in um.users)
+        var clientTransforms = new Dictionary<int, ClientTransform>();
+        foreach (var client in clients)
         {
             GameObject clientGo;
-            if (!clientGos.TryGetValue(user.Key, out clientGo))
+            if (!clientGos.TryGetValue(client.Key, out clientGo))
             {
                 clientGo = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                clientGo.name = user.Value.name;
+                clientGo.name = client.Value.name;
                 clientGo.transform.parent = transform;
-                clientGos.Add(user.Key, clientGo);
+                clientGos.Add(client.Key, clientGo);
             }
 
-            var clientTransform = clientGo.transform;
-            clientTransform.position = user.Value.position;
-            clientTransform.rotation = quaternion.Euler(user.Value.rotation);
+            var clientGoTransform = clientGo.transform;
+            Debug.Log($"setting the transform using ${client.Value.clientTransform.position}");
+            clientGoTransform.position = client.Value.clientTransform.position;
+            clientGoTransform.rotation = client.Value.clientTransform.rotation;
+            clientTransforms.Add(client.Key, client.Value.clientTransform);
+        }
+
+        using (UdpClient udpClient = new UdpClient())
+        {
+            foreach (var client in clients)
+            {
+                var payloadJson = JsonConvert.SerializeObject(clientTransforms, new JsonSerializerSettings() {
+                        ReferenceLoopHandling = ReferenceLoopHandling.Ignore
+                    });
+                var payload = Encoding.ASCII.GetBytes(payloadJson);
+                udpClient.Send(payload, payload.Length, client.Value.clientIp, Utils.CLIENT_UDP_PORT);
+            }
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
